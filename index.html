@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>Endless Highway</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="game-container">
+
+        <!-- HUD -->
+        <div class="hud">
+
+            <div>
+                <span>Distance</span>
+                <strong id="distance">0 m</strong>
+            </div>
+
+            <div>
+                <span>Speed</span>
+                <strong id="speed">1.0x</strong>
+            </div>
+
+            <div>
+                <span>Level</span>
+                <strong id="level">1</strong>
+            </div>
+
+            <div>
+                <span>Best</span>
+                <strong id="best">0 m</strong>
+            </div>
+
+        </div>
+
+
+        <!-- GAME -->
+        <div class="game-area">
+
+            <canvas id="gameCanvas"
+                width="420"
+                height="700">
+            </canvas>
+
+            <!-- GAME OVER -->
+            <div id="gameOver" class="game-over">
+
+                <h1>CRASH!</h1>
+
+                <p id="finalScore">
+                    You travelled 0 m
+                </p>
+
+                <button id="restartBtn">
+                    PLAY AGAIN
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- CONTROLS -->
+        <div class="controls">
+
+            <button id="leftBtn">
+                ◀
+            </button>
+
+            <button id="pauseBtn">
+                PAUSE
+            </button>
+
+            <button id="rightBtn">
+                ▶
+            </button>
+
+        </div>
+
+        <p class="instructions">
+            Use ← → or A / D to change lanes
+        </p>
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
