@@ -262,3 +262,245 @@ canvas {
     }
 
 }
+
+/* =========================
+   VEHICLE SELECTION
+========================= */
+
+.vehicle-screen {
+
+    min-height: 100vh;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+
+    text-align: center;
+
+    padding: 25px;
+
+}
+
+
+.vehicle-screen h1 {
+
+    font-size: 38px;
+
+    margin-bottom: 10px;
+
+    letter-spacing: 2px;
+
+}
+
+
+.choose-text {
+
+    color: #aaa;
+
+    margin-bottom: 25px;
+
+}
+
+
+.vehicle-options {
+
+    width: 100%;
+
+    max-width: 500px;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 12px;
+
+}
+
+
+.vehicle-option {
+
+    min-height: 120px;
+
+    border: 2px solid #444;
+
+    border-radius: 15px;
+
+    background: #222;
+
+    color: white;
+
+    cursor: pointer;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+
+    gap: 5px;
+
+    transition: 0.2s;
+
+}
+
+
+.vehicle-option:hover {
+
+    transform: translateY(-3px);
+
+    border-color: #777;
+
+}
+
+
+.vehicle-option.selected {
+
+    border-color: #4285ff;
+
+    background: #182744;
+
+    box-shadow:
+        0 0 15px rgba(66, 133, 255, 0.3);
+
+}
+
+
+.vehicle-icon {
+
+    font-size: 38px;
+
+}
+
+
+.vehicle-option strong {
+
+    font-size: 16px;
+
+}
+
+
+.vehicle-option small {
+
+    color: #999;
+
+    font-size: 12px;
+
+}
+
+
+/* =========================
+   START BUTTON
+========================= */
+
+.start-game-btn {
+
+    margin-top: 25px;
+
+    width: 220px;
+
+    height: 55px;
+
+    border: none;
+
+    border-radius: 12px;
+
+    background: #4285ff;
+
+    color: white;
+
+    font-size: 17px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+}
+
+
+.start-game-btn:hover {
+
+    background: #5b96ff;
+
+}
+
+
+.start-game-btn:active {
+
+    transform: scale(0.97);
+
+}
+
+
+/* =========================
+   GAME SCREEN
+========================= */
+
+.game-screen {
+
+    display: none;
+
+}
+
+
+/* =========================
+   CHANGE VEHICLE BUTTON
+========================= */
+
+#changeVehicleBtn {
+
+    margin-top: 10px;
+
+    border: 1px solid #555;
+
+    padding: 10px 18px;
+
+    border-radius: 8px;
+
+    background: #252525;
+
+    color: white;
+
+    cursor: pointer;
+
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 450px) {
+
+    .vehicle-screen h1 {
+
+        font-size: 28px;
+
+    }
+
+    .vehicle-options {
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
+    }
+
+    .vehicle-option {
+
+        min-height: 105px;
+
+    }
+
+    .vehicle-icon {
+
+        font-size: 30px;
+
+    }
+
+}
