@@ -1,992 +1,393 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// ===============================
+// VEHICLE SELECTION
+// ===============================
+
+let selectedVehicle = "car";
+
+let gameStarted = false;
+
+
+const vehicleScreen =
+    document.getElementById("vehicleScreen");
+
+const gameScreen =
+    document.getElementById("gameScreen");
+
+const vehicleButtons =
+    document.querySelectorAll(".vehicle-option");
+
+const startGameBtn =
+    document.getElementById("startGameBtn");
+
+
+vehicleButtons.forEach(function (button) {
+
+    button.addEventListener("click", function () {
+
+        vehicleButtons.forEach(function (btn) {
+
+            btn.classList.remove("selected");
+
+        });
+
+
+        button.classList.add("selected");
+
+
+        selectedVehicle =
+            button.dataset.vehicle;
+
+    });
+
+});
+
+
+startGameBtn.addEventListener(
+    "click",
+    function () {
+
+        gameStarted = true;
+
+        vehicleScreen.style.display = "none";
+
+        gameScreen.style.display = "block";
+
+        restartGame();
+
+    }
+);
+
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 
-
-/* =========================================================
-   ROAD
-========================================================= */
-
 const LANES = 5;
-
 const ROAD_X = 42;
 const ROAD_WIDTH = 336;
-
 const LANE_WIDTH = ROAD_WIDTH / LANES;
 
+const PLAYER_Y = HEIGHT - 130;
 
-/* =========================================================
-   TRAFFIC AI SETTINGS
-========================================================= */
+// ===============================
+// GAME STATE
+// ===============================
 
-const HALF_ROAD = HEIGHT / 2;
+let traffic = [];
 
-const LANE_CHANGE_TIME = 0.45;
+let running = true;
+let gameOver = false;
 
-const FRONT_SAFE_DISTANCE = 110;
+let lastTime = 0;
 
-const BACK_SAFE_DISTANCE = 90;
+let distance = 0;
+let bestScore = Number(localStorage.getItem("carGameBest")) || 0;
 
-const LANE_CHANGE_SAFE_DISTANCE = 125;
+let level = 1;
+let roadOffset = 0;
+
+let spawnTimer = 0;
+let gameTime = 0;
+
+let dayNight = 0;
 
 
-/* =========================================================
-   PLAYER
-========================================================= */
+// ===============================
+// PLAYER
+// ===============================
 
 const player = {
 
     lane: 2,
 
+    x: 0,
+    y: PLAYER_Y,
+
     width: 42,
     height: 76,
 
-    x: 0,
-    y: HEIGHT - 130,
-
     targetX: 0,
 
-    shield: false,
+    type: "car",
 
-    boost: 0,
+    body: "#2196f3",
 
-    invincible: 0
+    roof: "#0d47a1"
 
 };
-
-
-/* =========================================================
-   GAME STATE
-========================================================= */
-
-let traffic = [];
-
-let coins = [];
-
-let particles = [];
-
-let running = true;
-
-let gameOver = false;
-
-let lastTime = performance.now();
-
-let spawnTimer = 0;
-
-let coinTimer = 2;
-
-let distance = 0;
-
-let bestScore = 0;
-
-let coinScore = 0;
-
-let roadOffset = 0;
-
-let level = 1;
-
-let gameTime = 0;
-
-let dayNight = 0;
-
-let soundEnabled = true;
-
-
-/* =========================================================
-   BEST SCORE
-========================================================= */
-
-try {
-
-    bestScore =
-        Number(
-            localStorage.getItem("carGameBest")
-        ) || 0;
-
-} catch (error) {
-
-    bestScore = 0;
-
-}
-
-
-document.getElementById("best").textContent =
-    Math.floor(bestScore) + " m";
-
-
-/* =========================================================
-   VEHICLE TYPES
-========================================================= */
-
-const vehicleTypes = [
-
-    {
-        type: "car",
-
-        width: 40,
-        height: 70,
-
-        body: "#eeeeee",
-        roof: "#999999",
-
-        speed: 0.90
-    },
-
-    {
-        type: "car",
-
-        width: 42,
-        height: 76,
-
-        body: "#e74c3c",
-        roof: "#8e2929",
-
-        speed: 1.00
-    },
-
-    {
-        type: "car",
-
-        width: 42,
-        height: 74,
-
-        body: "#f0c43c",
-        roof: "#a88a20",
-
-        speed: 0.85
-    },
-
-    {
-        type: "car",
-
-        width: 43,
-        height: 78,
-
-        body: "#4d86e8",
-        roof: "#24549d",
-
-        speed: 1.05
-    },
-
-    {
-        type: "suv",
-
-        width: 47,
-        height: 82,
-
-        body: "#444444",
-        roof: "#222222",
-
-        speed: 0.90
-    },
-
-    {
-        type: "van",
-
-        width: 48,
-        height: 88,
-
-        body: "#eeeeee",
-        roof: "#888888",
-
-        speed: 0.72
-    },
-
-    {
-        type: "truck",
-
-        width: 54,
-        height: 108,
-
-        body: "#cccccc",
-        roof: "#666666",
-
-        speed: 0.58
-    }
-
-];
-
-
-/* =========================================================
-   PLAYER POSITION
-========================================================= */
 
 function getLaneX(lane, width) {
 
     return (
         ROAD_X +
         lane * LANE_WIDTH +
-        LANE_WIDTH / 2 -
-        width / 2
+        (LANE_WIDTH - width) / 2
     );
 
 }
 
-
-player.x =
-    getLaneX(
-        player.lane,
-        player.width
-    );
-
-player.targetX =
-    player.x;
+player.x = getLaneX(player.lane, player.width);
+player.targetX = player.x;
 
 
-/* =========================================================
-   RANDOM
-========================================================= */
+// ===============================
+// VEHICLE TYPES
+// ===============================
+
+const vehicleTypes = [
+
+    {
+        type: "car",
+        width: 42,
+        height: 76,
+        body: "#e74c3c",
+        roof: "#8e2929",
+        speed: 1
+    },
+
+    {
+        type: "car",
+        width: 40,
+        height: 70,
+        body: "#eeeeee",
+        roof: "#888888",
+        speed: 0.95
+    },
+
+    {
+        type: "car",
+        width: 42,
+        height: 74,
+        body: "#f0c43c",
+        roof: "#a88a20",
+        speed: 0.9
+    },
+
+    {
+        type: "car",
+        width: 43,
+        height: 78,
+        body: "#4d86e8",
+        roof: "#24549d",
+        speed: 1.05
+    },
+
+    {
+        type: "bike",
+        width: 25,
+        height: 55,
+        body: "#222222",
+        roof: "#555555",
+        speed: 1.25
+    },
+
+    {
+        type: "truck",
+        width: 54,
+        height: 105,
+        body: "#cccccc",
+        roof: "#666666",
+        speed: 0.62
+    },
+
+    {
+        type: "bus",
+        width: 58,
+        height: 125,
+        body: "#f39c12",
+        roof: "#8e5a08",
+        speed: 0.55
+    },
+
+    {
+        type: "tank",
+        width: 58,
+        height: 82,
+        body: "#4b5d3a",
+        roof: "#26321f",
+        speed: 0.45
+    }
+
+];
+
+
+// ===============================
+// RANDOM
+// ===============================
 
 function random(min, max) {
 
-    return (
-        min +
-        Math.random() *
-        (max - min)
-    );
+    return Math.random() * (max - min) + min;
 
 }
 
 
-/* =========================================================
-   PLAYER LANE CHANGE
-========================================================= */
+// ===============================
+// MOVE PLAYER
+// ===============================
 
 function movePlayer(direction) {
 
-    if (gameOver)
-        return;
+    if (gameOver) return;
 
     player.lane += direction;
 
-    player.lane =
-        Math.max(
-            0,
-            Math.min(
-                LANES - 1,
-                player.lane
-            )
-        );
+    if (player.lane < 0) {
+        player.lane = 0;
+    }
+
+    if (player.lane >= LANES) {
+        player.lane = LANES - 1;
+    }
 
     player.targetX =
-        getLaneX(
-            player.lane,
-            player.width
-        );
+        getLaneX(player.lane, player.width);
 
 }
 
 
-/* =========================================================
-   CHECK IF LANE IS SAFE
-========================================================= */
-
-function isLaneSafe(
-    lane,
-    y,
-    width,
-    height,
-    ignoreVehicle = null
-) {
-
-    for (const car of traffic) {
-
-        if (car === ignoreVehicle) {
-            continue;
-        }
-
-        /*
-           During a lane change, also consider
-           the vehicle's target lane.
-        */
-
-        const carLane =
-            car.laneChanging
-                ? car.targetLane
-                : car.lane;
-
-        if (carLane !== lane) {
-            continue;
-        }
-
-        const myCenter =
-            y + height / 2;
-
-        const otherCenter =
-            car.y + car.height / 2;
-
-        const verticalGap =
-            Math.abs(
-                myCenter -
-                otherCenter
-            );
-
-        if (
-            verticalGap <
-            LANE_CHANGE_SAFE_DISTANCE +
-            Math.max(
-                height,
-                car.height
-            ) / 2
-        ) {
-
-            return false;
-
-        }
-
-    }
-
-    return true;
-
-}
-
-
-/* =========================================================
-   FIND SAFE LANE
-========================================================= */
-
-function findSafeLane(car) {
-
-    const possibleLanes = [];
-
-    const directions = [-1, 1];
-
-    for (const direction of directions) {
-
-        const targetLane =
-            car.lane + direction;
-
-        /*
-           Don't leave the road.
-        */
-
-        if (
-            targetLane < 0 ||
-            targetLane >= LANES
-        ) {
-
-            continue;
-
-        }
-
-
-        /*
-           Basic safety check.
-        */
-
-        if (
-            !isLaneSafe(
-                targetLane,
-                car.y,
-                car.width,
-                car.height,
-                car
-            )
-        ) {
-
-            continue;
-
-        }
-
-
-        /*
-           Check vehicle in front.
-        */
-
-        let frontSafe = true;
-
-        for (const other of traffic) {
-
-            if (other === car) {
-                continue;
-            }
-
-            const otherLane =
-                other.laneChanging
-                    ? other.targetLane
-                    : other.lane;
-
-            if (
-                otherLane !== targetLane
-            ) {
-
-                continue;
-
-            }
-
-            if (
-                other.y < car.y
-            ) {
-
-                const gap =
-                    car.y -
-                    (
-                        other.y +
-                        other.height
-                    );
-
-                if (
-                    gap <
-                    FRONT_SAFE_DISTANCE
-                ) {
-
-                    frontSafe = false;
-
-                    break;
-
-                }
-
-            }
-
-        }
-
-
-        if (!frontSafe) {
-            continue;
-        }
-
-
-        /*
-           Check vehicle behind.
-        */
-
-        let backSafe = true;
-
-        for (const other of traffic) {
-
-            if (other === car) {
-                continue;
-            }
-
-            const otherLane =
-                other.laneChanging
-                    ? other.targetLane
-                    : other.lane;
-
-            if (
-                otherLane !== targetLane
-            ) {
-
-                continue;
-
-            }
-
-            if (
-                other.y > car.y
-            ) {
-
-                const gap =
-                    other.y -
-                    (
-                        car.y +
-                        car.height
-                    );
-
-                if (
-                    gap <
-                    BACK_SAFE_DISTANCE
-                ) {
-
-                    backSafe = false;
-
-                    break;
-
-                }
-
-            }
-
-        }
-
-
-        if (!backSafe) {
-            continue;
-        }
-
-
-        possibleLanes.push(
-            targetLane
-        );
-
-    }
-
-
-    if (
-        possibleLanes.length === 0
-    ) {
-
-        return null;
-
-    }
-
-
-    return possibleLanes[
-        Math.floor(
-            Math.random() *
-            possibleLanes.length
-        )
-    ];
-
-}
-
-
-/* =========================================================
-   VEHICLE AHEAD
-========================================================= */
-
-function vehicleAhead(
-    car,
-    lane = car.lane
-) {
-
-    let closest = null;
-
-    let smallestGap = Infinity;
-
-
-    for (const other of traffic) {
-
-        if (other === car) {
-            continue;
-        }
-
-
-        const otherLane =
-            other.laneChanging
-                ? other.targetLane
-                : other.lane;
-
-
-        if (
-            otherLane !== lane
-        ) {
-
-            continue;
-
-        }
-
-
-        /*
-           Only vehicles ahead.
-        */
-
-        if (
-            other.y < car.y
-        ) {
-
-            const gap =
-                car.y -
-                (
-                    other.y +
-                    other.height
-                );
-
-
-            if (
-                gap >= 0 &&
-                gap < smallestGap
-            ) {
-
-                smallestGap =
-                    gap;
-
-                closest =
-                    other;
-
-            }
-
-        }
-
-    }
-
-
-    return closest;
-
-}
-
-
-/* =========================================================
-   GET TARGET SPEED
-========================================================= */
-
-function getTargetSpeed(
-    car,
-    lane = car.lane
-) {
-
-    /*
-       Start with normal speed.
-    */
-
-    let targetSpeed =
-        car.baseSpeed;
-
-
-    /*
-       Find vehicle ahead.
-    */
-
-    const frontCar =
-        vehicleAhead(
-            car,
-            lane
-        );
-
-
-    if (frontCar) {
-
-        const gap =
-            car.y -
-            (
-                frontCar.y +
-                frontCar.height
-            );
-
-
-        /*
-           Very close.
-        */
-
-        if (
-            gap < 45
-        ) {
-
-            targetSpeed =
-                frontCar.currentSpeed *
-                0.72;
-
-        }
-
-
-        /*
-           Getting close.
-        */
-
-        else if (
-            gap < 100
-        ) {
-
-            targetSpeed =
-                frontCar.currentSpeed *
-                0.88;
-
-        }
-
-
-        /*
-           Following normally.
-        */
-
-        else if (
-            gap < 180
-        ) {
-
-            targetSpeed =
-                frontCar.currentSpeed;
-
-        }
-
-    }
-
-
-    /*
-       Never completely stop.
-    */
-
-    return Math.max(
-        0.35,
-        targetSpeed
-    );
-
-}
-
-
-/* =========================================================
-   SPAWN TRAFFIC
-========================================================= */
+// ===============================
+// SPAWN TRAFFIC
+// ===============================
 
 function spawnTraffic() {
 
-    const availableLanes = [];
+    let lane = Math.floor(
+        Math.random() * LANES
+    );
 
+    let attempts = 0;
 
-    /*
-       Find safe spawn lanes.
-    */
-
-    for (
-        let lane = 0;
-        lane < LANES;
-        lane++
-    ) {
+    while (attempts < 10) {
 
         let safe = true;
 
-
-        for (
-            const car of traffic
-        ) {
-
-            const carLane =
-                car.laneChanging
-                    ? car.targetLane
-                    : car.lane;
-
+        for (const vehicle of traffic) {
 
             if (
-                carLane === lane &&
-                car.y < 180
+                vehicle.lane === lane &&
+                vehicle.y < 180
             ) {
 
                 safe = false;
-
                 break;
 
             }
 
         }
 
+        if (safe) break;
 
-        if (safe) {
+        lane =
+            Math.floor(Math.random() * LANES);
 
-            availableLanes.push(
-                lane
-            );
-
-        }
+        attempts++;
 
     }
 
 
-    if (
-        availableLanes.length === 0
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-       Random lane.
-    */
-
-    const lane =
-        availableLanes[
-        Math.floor(
-            Math.random() *
-            availableLanes.length
-        )
-        ];
-
-
-    /*
-       Random vehicle type.
-    */
-
-    const vehicle =
+    const type =
         vehicleTypes[
         Math.floor(
-            Math.random() *
-            vehicleTypes.length
+            Math.random() * vehicleTypes.length
         )
         ];
 
 
-    traffic.push({
+    const vehicle = {
+
+        type: type.type,
 
         lane: lane,
 
-        targetLane: lane,
+        x: getLaneX(lane, type.width),
 
-        x:
-            getLaneX(
-                lane,
-                vehicle.width
-            ),
+        y: -type.height - 20,
 
-        y:
-            -150 -
-            random(
-                0,
-                100
-            ),
+        width: type.width,
 
-        width:
-            vehicle.width,
+        height: type.height,
 
-        height:
-            vehicle.height,
+        body: type.body,
 
-        body:
-            vehicle.body,
+        roof: type.roof,
 
-        roof:
-            vehicle.roof,
+        speed: type.speed
 
-        baseSpeed:
-            vehicle.speed,
+    };
 
-        /*
-           Current speed changes
-           according to traffic.
-        */
 
-        currentSpeed:
-            vehicle.speed,
-
-        /*
-           Each vehicle gets
-           exactly ONE lane change.
-        */
-
-        hasChangedLane:
-            false,
-
-        laneChanging:
-            false,
-
-        laneChangeProgress:
-            0,
-
-        laneChangeTimer:
-            random(
-                2.5,
-                5
-            )
-
-    });
+    traffic.push(vehicle);
 
 }
 
 
-/* =========================================================
-   TRAFFIC COLLISION
-========================================================= */
+// ===============================
+// COLLISION
+// ===============================
 
-function trafficCollision(a, b) {
-
-    const padding = 7;
-
+function checkCollision(a, b) {
 
     return (
 
-        a.x + padding <
-        b.x +
-        b.width -
-        padding
-
-        &&
-
-        a.x +
-        a.width -
-        padding >
-        b.x +
-        padding
-
-        &&
-
-        a.y + padding <
-        b.y +
-        b.height -
-        padding
-
-        &&
-
-        a.y +
-        a.height -
-        padding >
-        b.y +
-        padding
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
 
     );
 
 }
 
 
-/* =========================================================
-   PREVENT TRAFFIC OVERLAP
-========================================================= */
+// ===============================
+// END GAME
+// ===============================
 
-function preventTrafficCollisions(car) {
+function endGame() {
 
-    for (
-        const other of traffic
-    ) {
-
-        if (
-            car === other
-        ) {
-
-            continue;
-
-        }
+    gameOver = true;
+    running = false;
 
 
-        if (
-            trafficCollision(
-                car,
-                other
-            )
-        ) {
+    if (distance > bestScore) {
 
-            /*
-               If this car is behind
-               the other car, place it
-               behind with a small gap.
-            */
+        bestScore =
+            Math.floor(distance);
 
-            if (
-                car.y > other.y
-            ) {
-
-                car.y =
-                    other.y +
-                    other.height +
-                    8;
-
-            }
-
-        }
+        localStorage.setItem(
+            "carGameBest",
+            bestScore
+        );
 
     }
+
+
+    document.getElementById(
+        "finalScore"
+    ).textContent =
+        "You travelled " +
+        Math.floor(distance) +
+        " m";
+
+
+    document.getElementById(
+        "gameOver"
+    ).classList.add("show");
 
 }
 
 
-/* =========================================================
-   DRAW ROAD
-========================================================= */
+// ===============================
+// DRAW ROAD
+// ===============================
 
 function drawRoad() {
 
-    const cycle =
-        Math.sin(
-            dayNight
-        );
+    // Grass
 
-
-    let grassColor =
-        "#6f9d62";
-
-
-    if (
-        cycle < -0.35
-    ) {
-
-        grassColor =
-            "#263c28";
-
-    }
-
-
-    /*
-       Grass
-    */
-
-    ctx.fillStyle =
-        grassColor;
+    ctx.fillStyle = "#39733b";
 
     ctx.fillRect(
         0,
@@ -996,15 +397,9 @@ function drawRoad() {
     );
 
 
-    /*
-       Road
-    */
+    // Road
 
-    ctx.fillStyle =
-        cycle < -0.35
-            ? "#4d4d4d"
-            : "#777";
-
+    ctx.fillStyle = "#444";
 
     ctx.fillRect(
         ROAD_X,
@@ -1014,33 +409,31 @@ function drawRoad() {
     );
 
 
-    /*
-       Road shoulders
-    */
+    // Road edges
 
-    ctx.fillStyle =
-        "#d5d5d5";
-
+    ctx.fillStyle = "#eeeeee";
 
     ctx.fillRect(
-        ROAD_X - 10,
+        ROAD_X,
         0,
-        10,
+        5,
+        HEIGHT
+    );
+
+    ctx.fillRect(
+        ROAD_X + ROAD_WIDTH - 5,
+        0,
+        5,
         HEIGHT
     );
 
 
-    ctx.fillRect(
-        ROAD_X + ROAD_WIDTH,
-        0,
-        10,
-        HEIGHT
-    );
+    // Lane markings
 
+    ctx.fillStyle = "#eeeeee";
 
-    /*
-       Lane lines
-    */
+    const dashHeight = 40;
+    const gap = 35;
 
     for (
         let lane = 1;
@@ -1050,633 +443,597 @@ function drawRoad() {
 
         const x =
             ROAD_X +
-            lane *
-            LANE_WIDTH;
-
+            lane * LANE_WIDTH;
 
         for (
-            let y =
-                -80 +
-                roadOffset % 80;
-
+            let y = -dashHeight;
             y < HEIGHT;
-
-            y += 80
+            y += dashHeight + gap
         ) {
-
-            ctx.fillStyle =
-                "#eeeeee";
-
 
             ctx.fillRect(
                 x - 2,
-                y,
+                y + roadOffset,
                 4,
-                40
+                dashHeight
             );
 
         }
 
     }
 
-
-    /*
-       Road borders
-    */
-
-    ctx.fillStyle =
-        "#555";
-
-
-    ctx.fillRect(
-        ROAD_X,
-        0,
-        4,
-        HEIGHT
-    );
-
-
-    ctx.fillRect(
-        ROAD_X +
-        ROAD_WIDTH -
-        4,
-
-        0,
-
-        4,
-
-        HEIGHT
-    );
-
 }
 
 
-/* =========================================================
-   DRAW VEHICLE
-========================================================= */
+// ===============================
+// DRAW CAR
+// ===============================
 
-function drawVehicle(
-    vehicle,
-    isPlayer = false
-) {
+function drawCar(vehicle) {
 
-    ctx.save();
-
-
-    ctx.translate(
-        vehicle.x,
-        vehicle.y
-    );
+    const x = vehicle.x;
+    const y = vehicle.y;
+    const w = vehicle.width;
+    const h = vehicle.height;
 
 
-    /*
-       Shadow
-    */
+    // Body
 
-    ctx.fillStyle =
-        "rgba(0,0,0,0.3)";
-
-
-    ctx.fillRect(
-        4,
-        6,
-        vehicle.width,
-        vehicle.height
-    );
-
-
-    /*
-       Body
-    */
-
-    ctx.fillStyle =
-        vehicle.body;
-
+    ctx.fillStyle = vehicle.body;
 
     ctx.beginPath();
 
-
     ctx.roundRect(
-        0,
-        0,
-        vehicle.width,
-        vehicle.height,
-        7
+        x,
+        y,
+        w,
+        h,
+        8
     );
-
 
     ctx.fill();
 
 
-    /*
-       Roof
-    */
+    // Roof
 
-    ctx.fillStyle =
-        vehicle.roof;
-
+    ctx.fillStyle = vehicle.roof;
 
     ctx.beginPath();
 
-
     ctx.roundRect(
-        vehicle.width * 0.15,
+        x + w * 0.16,
+        y + h * 0.20,
+        w * 0.68,
+        h * 0.42,
+        6
+    );
 
-        vehicle.height * 0.18,
+    ctx.fill();
 
-        vehicle.width * 0.7,
 
-        vehicle.height * 0.4,
+    // Windows
 
+    ctx.fillStyle = "#18222d";
+
+    ctx.fillRect(
+        x + w * 0.22,
+        y + h * 0.25,
+        w * 0.56,
+        h * 0.13
+    );
+
+    ctx.fillRect(
+        x + w * 0.22,
+        y + h * 0.42,
+        w * 0.56,
+        h * 0.12
+    );
+
+
+    // Wheels
+
+    ctx.fillStyle = "#111";
+
+    ctx.fillRect(
+        x - 3,
+        y + h * 0.20,
+        6,
+        h * 0.22
+    );
+
+    ctx.fillRect(
+        x + w - 3,
+        y + h * 0.20,
+        6,
+        h * 0.22
+    );
+
+    ctx.fillRect(
+        x - 3,
+        y + h * 0.68,
+        6,
+        h * 0.22
+    );
+
+    ctx.fillRect(
+        x + w - 3,
+        y + h * 0.68,
+        6,
+        h * 0.22
+    );
+
+
+    // Tail lights
+
+    ctx.fillStyle = "#ff2222";
+
+    ctx.fillRect(
+        x + 5,
+        y + h - 9,
+        8,
         5
     );
 
-
-    ctx.fill();
-
-
-    /*
-       Windows
-    */
-
-    ctx.fillStyle =
-        "#b7dce9";
-
-
-    ctx.beginPath();
-
-
-    ctx.roundRect(
-        vehicle.width * 0.22,
-
-        vehicle.height * 0.22,
-
-        vehicle.width * 0.56,
-
-        vehicle.height * 0.13,
-
-        3
-    );
-
-
-    ctx.fill();
-
-
-    ctx.fillStyle =
-        "#8fb9c9";
-
-
-    ctx.beginPath();
-
-
-    ctx.roundRect(
-        vehicle.width * 0.22,
-
-        vehicle.height * 0.39,
-
-        vehicle.width * 0.56,
-
-        vehicle.height * 0.14,
-
-        3
-    );
-
-
-    ctx.fill();
-
-
-    /*
-       Wheels
-    */
-
-    ctx.fillStyle =
-        "#181818";
-
-
     ctx.fillRect(
-        -2,
-        12,
-        5,
-        17
-    );
-
-
-    ctx.fillRect(
-        vehicle.width - 3,
-        12,
-        5,
-        17
-    );
-
-
-    ctx.fillRect(
-        -2,
-        vehicle.height - 29,
-        5,
-        17
-    );
-
-
-    ctx.fillRect(
-        vehicle.width - 3,
-        vehicle.height - 29,
-        5,
-        17
-    );
-
-
-    /*
-       Tail lights
-    */
-
-    ctx.fillStyle =
-        "#ff3030";
-
-
-    ctx.fillRect(
-        7,
-        vehicle.height - 7,
+        x + w - 13,
+        y + h - 9,
         8,
-        4
+        5
     );
-
-
-    ctx.fillRect(
-        vehicle.width - 15,
-        vehicle.height - 7,
-        8,
-        4
-    );
-
-
-    /*
-       Player outline
-    */
-
-    if (isPlayer) {
-
-        ctx.strokeStyle =
-            "#ffffff";
-
-        ctx.lineWidth = 2;
-
-
-        ctx.strokeRect(
-            1,
-            1,
-            vehicle.width - 2,
-            vehicle.height - 2
-        );
-
-    }
-
-
-    ctx.restore();
 
 }
 
 
-/* =========================================================
-   COINS
-========================================================= */
+// ===============================
+// DRAW BIKE
+// ===============================
 
-function spawnCoin() {
+function drawBike(vehicle) {
 
-    const lane =
-        Math.floor(
-            Math.random() *
-            LANES
-        );
+    const x =
+        vehicle.x + vehicle.width / 2;
 
+    const y = vehicle.y;
 
-    coins.push({
-
-        lane: lane,
-
-        x:
-            getLaneX(
-                lane,
-                24
-            ) + 12,
-
-        y: -30,
-
-        radius: 10
-
-    });
-
-}
+    const h = vehicle.height;
 
 
-function drawCoin(coin) {
+    // Wheels
+
+    ctx.fillStyle = "#111";
 
     ctx.beginPath();
-
 
     ctx.arc(
-        coin.x,
-        coin.y,
-        coin.radius,
+        x,
+        y + 10,
+        8,
         0,
         Math.PI * 2
     );
 
+    ctx.fill();
 
-    ctx.fillStyle =
-        "#ffd700";
 
+    ctx.beginPath();
+
+    ctx.arc(
+        x,
+        y + h - 10,
+        8,
+        0,
+        Math.PI * 2
+    );
 
     ctx.fill();
 
 
-    ctx.strokeStyle =
-        "#fff1a8";
+    // Body
 
+    ctx.strokeStyle = vehicle.body;
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 6;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        x,
+        y + 15
+    );
+
+    ctx.lineTo(
+        x - 8,
+        y + h / 2
+    );
+
+    ctx.lineTo(
+        x + 7,
+        y + h - 15
+    );
 
     ctx.stroke();
 
 
-    ctx.fillStyle =
-        "#9c7400";
+    // Rider
 
+    ctx.fillStyle = "#222";
 
-    ctx.font =
-        "bold 11px Arial";
+    ctx.beginPath();
 
-
-    ctx.textAlign =
-        "center";
-
-
-    ctx.fillText(
-        "$",
-        coin.x,
-        coin.y + 4
+    ctx.arc(
+        x,
+        y + 22,
+        6,
+        0,
+        Math.PI * 2
     );
 
-}
+    ctx.fill();
 
 
-/* =========================================================
-   COLLECT COINS
-========================================================= */
+    // Handle
 
-function collectCoins() {
+    ctx.strokeStyle = "#aaa";
 
-    for (
-        let i = coins.length - 1;
-        i >= 0;
-        i--
-    ) {
+    ctx.lineWidth = 3;
 
-        const coin =
-            coins[i];
+    ctx.beginPath();
 
+    ctx.moveTo(
+        x,
+        y + 25
+    );
 
-        if (
+    ctx.lineTo(
+        x + 10,
+        y + 20
+    );
 
-            Math.abs(
-                player.x +
-                player.width / 2 -
-                coin.x
-            ) < 30
-
-            &&
-
-            Math.abs(
-                player.y +
-                player.height / 2 -
-                coin.y
-            ) < 50
-
-        ) {
-
-            coinScore++;
-
-
-            coins.splice(
-                i,
-                1
-            );
-
-
-            createParticles(
-                coin.x,
-                coin.y,
-                "#ffd700"
-            );
-
-
-            playCoinSound();
-
-        }
-
-    }
+    ctx.stroke();
 
 }
 
 
-/* =========================================================
-   PARTICLES
-========================================================= */
+// ===============================
+// DRAW TRUCK
+// ===============================
 
-function createParticles(
-    x,
-    y,
-    color
-) {
+function drawTruck(vehicle) {
+
+    const x = vehicle.x;
+    const y = vehicle.y;
+    const w = vehicle.width;
+    const h = vehicle.height;
+
+
+    // Cargo
+
+    ctx.fillStyle = vehicle.body;
+
+    ctx.beginPath();
+
+    ctx.roundRect(
+        x,
+        y,
+        w,
+        h * 0.65,
+        5
+    );
+
+    ctx.fill();
+
+
+    // Cabin
+
+    ctx.fillStyle = vehicle.roof;
+
+    ctx.fillRect(
+        x,
+        y + h * 0.65,
+        w,
+        h * 0.35
+    );
+
+
+    // Window
+
+    ctx.fillStyle = "#1d2933";
+
+    ctx.fillRect(
+        x + 7,
+        y + h * 0.70,
+        w - 14,
+        h * 0.15
+    );
+
+
+    // Wheels
+
+    ctx.fillStyle = "#111";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x + 10,
+        y + h - 5,
+        9,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x + w - 10,
+        y + h - 5,
+        9,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+}
+
+
+// ===============================
+// DRAW BUS
+// ===============================
+
+function drawBus(vehicle) {
+
+    const x = vehicle.x;
+    const y = vehicle.y;
+    const w = vehicle.width;
+    const h = vehicle.height;
+
+
+    ctx.fillStyle = vehicle.body;
+
+    ctx.beginPath();
+
+    ctx.roundRect(
+        x,
+        y,
+        w,
+        h,
+        8
+    );
+
+    ctx.fill();
+
+
+    // Windows
+
+    ctx.fillStyle = "#182b38";
 
     for (
         let i = 0;
-        i < 10;
+        i < 5;
         i++
     ) {
 
-        particles.push({
-
-            x: x,
-
-            y: y,
-
-            vx:
-                random(
-                    -100,
-                    100
-                ),
-
-            vy:
-                random(
-                    -100,
-                    50
-                ),
-
-            life: 0.5,
-
-            color: color
-
-        });
-
-    }
-
-}
-
-
-function updateParticles(dt) {
-
-    for (
-        let i = particles.length - 1;
-        i >= 0;
-        i--
-    ) {
-
-        const p =
-            particles[i];
-
-
-        p.x +=
-            p.vx * dt;
-
-
-        p.y +=
-            p.vy * dt;
-
-
-        p.life -=
-            dt;
-
-
-        if (
-            p.life <= 0
-        ) {
-
-            particles.splice(
-                i,
-                1
-            );
-
-        }
-
-    }
-
-}
-
-
-function drawParticles() {
-
-    for (
-        const p of particles
-    ) {
-
-        ctx.globalAlpha =
-            Math.max(
-                0,
-                p.life * 2
-            );
-
-
-        ctx.fillStyle =
-            p.color;
-
-
         ctx.fillRect(
-            p.x,
-            p.y,
-            4,
-            4
+            x + 7,
+            y + 10 + i * 21,
+            w - 14,
+            13
         );
 
     }
 
 
-    ctx.globalAlpha = 1;
+    // Wheels
+
+    ctx.fillStyle = "#111";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x + 10,
+        y + h - 8,
+        9,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x + w - 10,
+        y + h - 8,
+        9,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
 
 }
 
 
-/* =========================================================
-   UPDATE
-========================================================= */
+// ===============================
+// DRAW TANK
+// ===============================
 
-function update(deltaTime) {
+function drawTank(vehicle) {
 
-    if (
-        !running ||
-        gameOver
-    ) {
+    const x = vehicle.x;
+    const y = vehicle.y;
+    const w = vehicle.width;
+    const h = vehicle.height;
 
-        return;
+
+    // Tracks
+
+    ctx.fillStyle = "#20251d";
+
+    ctx.fillRect(
+        x - 3,
+        y,
+        9,
+        h
+    );
+
+    ctx.fillRect(
+        x + w - 6,
+        y,
+        9,
+        h
+    );
+
+
+    // Tank body
+
+    ctx.fillStyle = vehicle.body;
+
+    ctx.beginPath();
+
+    ctx.roundRect(
+        x + 5,
+        y + 15,
+        w - 10,
+        h - 20,
+        8
+    );
+
+    ctx.fill();
+
+
+    // Turret
+
+    ctx.fillStyle = vehicle.roof;
+
+    ctx.beginPath();
+
+    ctx.arc(
+        x + w / 2,
+        y + h / 2,
+        18,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+
+    // Cannon
+
+    ctx.strokeStyle = "#26321f";
+
+    ctx.lineWidth = 9;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        x + w / 2,
+        y + h / 2
+    );
+
+    ctx.lineTo(
+        x + w / 2,
+        y - 15
+    );
+
+    ctx.stroke();
+
+}
+
+
+// ===============================
+// DRAW VEHICLE
+// ===============================
+
+function drawVehicle(vehicle) {
+
+    if (vehicle.type === "bike") {
+
+        drawBike(vehicle);
 
     }
 
+    else if (vehicle.type === "truck") {
 
-    gameTime +=
-        deltaTime;
+        drawTruck(vehicle);
+
+    }
+
+    else if (vehicle.type === "bus") {
+
+        drawBus(vehicle);
+
+    }
+
+    else if (vehicle.type === "tank") {
+
+        drawTank(vehicle);
+
+    }
+
+    else {
+
+        drawCar(vehicle);
+
+    }
+
+}
 
 
-    /*
-       Difficulty
-    */
+// ===============================
+// UPDATE
+// ===============================
 
-    const difficulty =
-        1 +
-        distance / 1600;
+function update(dt) {
+
+    if (!running || gameOver) {
+        return;
+    }
 
 
-    /*
-       World speed
-    */
+    gameTime += dt;
+
+
+    // Distance
 
     const worldSpeed =
-        235 +
+        230 +
         Math.min(
-            230,
-            distance * 0.11
+            220,
+            distance * 0.12
         );
 
 
-    /*
-       Level
-    */
+    distance +=
+        worldSpeed *
+        dt *
+        0.035;
+
+
+    // Level
 
     level =
         1 +
         Math.floor(
-            distance / 500
+            distance / 1000
         );
 
 
-    /*
-       Day/night
-    */
-
-    dayNight +=
-        deltaTime * 0.015;
-
-
-    /*
-       Road animation
-    */
+    // Road movement
 
     roadOffset +=
         worldSpeed *
-        deltaTime;
+        dt;
 
 
-    /*
-       Distance
-    */
-
-    distance +=
-        worldSpeed *
-        deltaTime *
-        0.035;
+    roadOffset %= 75;
 
 
-    /*
-       Player smooth movement
-    */
+    // Player movement
 
     player.x +=
         (
@@ -1685,88 +1042,32 @@ function update(deltaTime) {
         ) *
         Math.min(
             1,
-            deltaTime * 13
+            dt * 12
         );
 
 
-    /* =====================================================
-       TRAFFIC SPAWN
-    ===================================================== */
+    // Spawn traffic
 
-    spawnTimer -=
-        deltaTime;
-
+    spawnTimer += dt;
 
     const spawnInterval =
         Math.max(
-            0.40,
+            0.45,
             1.25 -
-            distance / 3800
+            distance / 4000
         );
 
 
-    if (
-        spawnTimer <= 0
-    ) {
+    if (spawnTimer >= spawnInterval) {
+
+        spawnTimer = 0;
 
         spawnTraffic();
 
-
-        /*
-           Extra traffic at higher levels.
-        */
-
-        if (
-            level >= 3 &&
-            Math.random() <
-            Math.min(
-                0.35,
-                distance / 5000
-            )
-        ) {
-
-            spawnTraffic();
-
-        }
-
-
-        spawnTimer =
-            spawnInterval *
-            random(
-                0.75,
-                1.15
-            );
-
     }
 
 
-    /* =====================================================
-       COIN SPAWN
-    ===================================================== */
-
-    coinTimer -=
-        deltaTime;
-
-
-    if (
-        coinTimer <= 0
-    ) {
-
-        spawnCoin();
-
-
-        coinTimer =
-            random(
-                1.5,
-                3.5
-            );
-
-    }
-
-
-    /* =====================================================
-       UPDATE TRAFFIC
-    ===================================================== */
+    // Update traffic
 
     for (
         let i = traffic.length - 1;
@@ -1774,409 +1075,24 @@ function update(deltaTime) {
         i--
     ) {
 
-        const car =
+        const vehicle =
             traffic[i];
 
 
-        /* =================================================
-           LANE CHANGE TIMER
-        ================================================= */
-
-        car.laneChangeTimer -=
-            deltaTime;
-
-
-        /* =================================================
-           CAN START LANE CHANGE?
-        ================================================= */
-
-        /*
-           Front half of the road.
-        */
-
-        const inFrontHalf =
-            car.y + car.height <
-            HALF_ROAD;
-
-
-        /*
-           Estimate where the car will be
-           after completing the lane change.
-        */
-
-        const predictedY =
-            car.y +
+        vehicle.y +=
             worldSpeed *
-            car.currentSpeed *
-            LANE_CHANGE_TIME *
-            0.72;
+            vehicle.speed *
+            dt;
 
 
-        const predictedBottom =
-            predictedY +
-            car.height;
-
-
-        /*
-           The lane change must finish
-           before the halfway point.
-        */
-
-        const canFinishBeforeHalf =
-            predictedBottom <
-            HALF_ROAD;
-
-
-        /*
-           A vehicle can change lane
-           ONLY ONCE.
-        */
+        // Collision
 
         if (
-
-            !car.hasChangedLane &&
-
-            !car.laneChanging &&
-
-            car.laneChangeTimer <= 0 &&
-
-            inFrontHalf &&
-
-            canFinishBeforeHalf &&
-
-            Math.random() <
-            Math.min(
-                0.55,
-                0.10 +
-                distance / 7000
-            )
-
-        ) {
-
-            const safeLane =
-                findSafeLane(car);
-
-
-            if (
-                safeLane !== null
-            ) {
-
-                car.targetLane =
-                    safeLane;
-
-
-                car.laneChanging =
-                    true;
-
-
-                car.hasChangedLane =
-                    true;
-
-
-                car.laneChangeProgress =
-                    0;
-
-            }
-
-        }
-
-
-        /* =================================================
-           ACTUAL LANE CHANGE
-        ================================================= */
-
-        if (
-            car.laneChanging
-        ) {
-
-            /*
-               Progress of lane change.
-            */
-
-            car.laneChangeProgress +=
-                deltaTime /
-                LANE_CHANGE_TIME;
-
-
-            const progress =
-                Math.min(
-                    1,
-                    car.laneChangeProgress
-                );
-
-
-            /*
-               Smoothstep easing.
-            */
-
-            const eased =
-                progress *
-                progress *
-                (3 - 2 * progress);
-
-
-            const startX =
-                getLaneX(
-                    car.lane,
-                    car.width
-                );
-
-
-            const targetX =
-                getLaneX(
-                    car.targetLane,
-                    car.width
-                );
-
-
-            car.x =
-                startX +
-                (
-                    targetX -
-                    startX
-                ) *
-                eased;
-
-
-            /*
-               If halfway is reached,
-               don't allow the lane change
-               to continue beyond it.
-            */
-
-            if (
-                car.y + car.height >=
-                HALF_ROAD
-            ) {
-
-                /*
-                   If almost finished,
-                   complete the lane change.
-                */
-
-                if (
-                    progress >= 0.85
-                ) {
-
-                    car.x =
-                        targetX;
-
-                    car.lane =
-                        car.targetLane;
-
-                }
-
-                else {
-
-                    /*
-                       Otherwise keep the car
-                       in its original lane.
-                    */
-
-                    car.x =
-                        getLaneX(
-                            car.lane,
-                            car.width
-                        );
-
-                }
-
-                car.laneChanging =
-                    false;
-
-            }
-
-            else if (
-                progress >= 1
-            ) {
-
-                car.x =
-                    targetX;
-
-
-                car.lane =
-                    car.targetLane;
-
-
-                car.laneChanging =
-                    false;
-
-            }
-
-        }
-
-
-        /* =================================================
-           TRAFFIC SPEED AI
-        ================================================= */
-
-        /*
-           Which lane should be checked?
-
-           If changing lane, look at the
-           target lane.
-        */
-
-        const speedLane =
-            car.laneChanging
-                ? car.targetLane
-                : car.lane;
-
-
-        /*
-           Calculate desired speed.
-        */
-
-        const targetSpeed =
-            getTargetSpeed(
-                car,
-                speedLane
-            );
-
-
-        /*
-           Smooth acceleration/deceleration.
-        */
-
-        car.currentSpeed +=
-            (
-                targetSpeed -
-                car.currentSpeed
-            ) *
-            Math.min(
-                1,
-                deltaTime * 3
-            );
-
-
-        /* =================================================
-           EXTRA EMERGENCY BRAKING
-        ================================================= */
-
-        const frontCar =
-            vehicleAhead(
-                car,
-                speedLane
-            );
-
-
-        if (
-            frontCar
-        ) {
-
-            const gap =
-                car.y -
-                (
-                    frontCar.y +
-                    frontCar.height
-                );
-
-
-            /*
-               Very small gap.
-            */
-
-            if (
-                gap < 35
-            ) {
-
-                car.currentSpeed =
-                    Math.min(
-                        car.currentSpeed,
-                        frontCar.currentSpeed *
-                        0.60
-                    );
-
-            }
-
-        }
-
-
-        /* =================================================
-           MOVE TRAFFIC
-        ================================================= */
-
-        car.y +=
-
-            worldSpeed *
-
-            car.currentSpeed *
-
-            deltaTime *
-
-            difficulty *
-
-            0.72;
-
-
-        /* =================================================
-           EXTRA COLLISION PROTECTION
-        ================================================= */
-
-        preventTrafficCollisions(
-            car
-        );
-
-
-        /* =================================================
-           REMOVE TRAFFIC
-        ================================================= */
-
-        if (
-            car.y >
-            HEIGHT + 160
-        ) {
-
-            traffic.splice(
-                i,
-                1
-            );
-
-            continue;
-
-        }
-
-
-        /* =================================================
-           PLAYER COLLISION
-        ================================================= */
-
-        if (
-            trafficCollision(
+            checkCollision(
                 player,
-                car
+                vehicle
             )
         ) {
-
-            if (
-                player.shield
-            ) {
-
-                player.shield =
-                    false;
-
-
-                createParticles(
-                    player.x +
-                    player.width / 2,
-
-                    player.y +
-                    player.height / 2,
-
-                    "#42a5ff"
-                );
-
-
-                traffic.splice(
-                    i,
-                    1
-                );
-
-
-                continue;
-
-            }
-
 
             endGame();
 
@@ -2184,34 +1100,15 @@ function update(deltaTime) {
 
         }
 
-    }
 
-
-    /* =====================================================
-       UPDATE COINS
-    ===================================================== */
-
-    for (
-        let i = coins.length - 1;
-        i >= 0;
-        i--
-    ) {
-
-        const coin =
-            coins[i];
-
-
-        coin.y +=
-            worldSpeed *
-            deltaTime;
-
+        // Remove vehicles
 
         if (
-            coin.y >
-            HEIGHT + 30
+            vehicle.y >
+            HEIGHT + 150
         ) {
 
-            coins.splice(
+            traffic.splice(
                 i,
                 1
             );
@@ -2221,17 +1118,7 @@ function update(deltaTime) {
     }
 
 
-    collectCoins();
-
-
-    updateParticles(
-        deltaTime
-    );
-
-
-    /* =====================================================
-       HUD
-    ===================================================== */
+    // HUD
 
     document.getElementById(
         "distance"
@@ -2244,11 +1131,7 @@ function update(deltaTime) {
         "speed"
     ).textContent =
         (
-            1 +
-            Math.min(
-                2,
-                distance / 1800
-            )
+            worldSpeed / 230
         ).toFixed(1) +
         "x";
 
@@ -2258,12 +1141,19 @@ function update(deltaTime) {
     ).textContent =
         level;
 
+
+    document.getElementById(
+        "best"
+    ).textContent =
+        Math.floor(bestScore) +
+        " m";
+
 }
 
 
-/* =========================================================
-   DRAW
-========================================================= */
+// ===============================
+// DRAW
+// ===============================
 
 function draw() {
 
@@ -2278,229 +1168,307 @@ function draw() {
     drawRoad();
 
 
-    /*
-       Coins
-    */
+    // Traffic
 
     for (
-        const coin of coins
+        const vehicle of traffic
     ) {
 
-        drawCoin(coin);
+        drawVehicle(vehicle);
 
     }
 
 
-    /*
-       Traffic
-    */
+    // Player
 
-    traffic
-        .sort(
-            (a, b) =>
-                a.y - b.y
-        )
-        .forEach(
-            car =>
-                drawVehicle(car)
+    const playerVehicle = {
+
+        type: player.type,
+
+        x: player.x,
+
+        y: player.y,
+
+        width: player.width,
+
+        height: player.height,
+
+        body: player.body,
+
+        roof: player.roof
+
+    };
+
+    drawVehicle(playerVehicle);
+}
+
+
+// ===============================
+// GAME LOOP
+// ===============================
+
+function gameLoop(timestamp) {
+
+    if (!lastTime) {
+        lastTime = timestamp;
+    }
+
+
+    const dt =
+        Math.min(
+            (timestamp - lastTime) /
+            1000,
+            0.05
         );
 
 
-    /*
-       Player
-    */
+    lastTime = timestamp;
 
-    drawVehicle(
 
-        {
+    update(dt);
 
-            x:
-                player.x,
+    draw();
 
-            y:
-                player.y,
 
-            width:
-                player.width,
-
-            height:
-                player.height,
-
-            body:
-                "#4285ff",
-
-            roof:
-                "#24549d"
-
-        },
-
-        true
-
+    requestAnimationFrame(
+        gameLoop
     );
-
-
-    /*
-       Shield
-    */
-
-    if (
-        player.shield
-    ) {
-
-        ctx.beginPath();
-
-
-        ctx.arc(
-
-            player.x +
-            player.width / 2,
-
-            player.y +
-            player.height / 2,
-
-            52,
-
-            0,
-
-            Math.PI * 2
-
-        );
-
-
-        ctx.strokeStyle =
-            "#42a5ff";
-
-
-        ctx.lineWidth = 3;
-
-        ctx.stroke();
-
-    }
-
-
-    drawParticles();
 
 }
 
 
-/* =========================================================
-   GAME OVER
-========================================================= */
-
-function endGame() {
-
-    gameOver = true;
-
-    running = false;
+requestAnimationFrame(
+    gameLoop
+);
 
 
-    const finalDistance =
-        Math.floor(distance);
+// ===============================
+// KEYBOARD
+// ===============================
+
+document.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key === "ArrowLeft" ||
+            event.key.toLowerCase() === "a"
+        ) {
+
+            movePlayer(-1);
+
+        }
 
 
-    if (
-        finalDistance >
-        bestScore
-    ) {
+        if (
+            event.key === "ArrowRight" ||
+            event.key.toLowerCase() === "d"
+        ) {
 
-        bestScore =
-            finalDistance;
+            movePlayer(1);
+
+        }
 
 
-        try {
+        if (
+            event.key === " "
+        ) {
 
-            localStorage.setItem(
-                "carGameBest",
-                bestScore
-            );
+            togglePause();
 
-        } catch (error) { }
+        }
 
+    }
+);
+
+
+// ===============================
+// BUTTONS
+// ===============================
+
+document.getElementById(
+    "leftBtn"
+).addEventListener(
+    "click",
+    function () {
+
+        movePlayer(-1);
+
+    }
+);
+
+
+document.getElementById(
+    "rightBtn"
+).addEventListener(
+    "click",
+    function () {
+
+        movePlayer(1);
+
+    }
+);
+
+
+// ===============================
+// PAUSE
+// ===============================
+
+function togglePause() {
+
+    if (gameOver) {
+        return;
     }
 
 
+    running = !running;
+
+
     document.getElementById(
-        "best"
+        "pauseBtn"
     ).textContent =
-        bestScore +
-        " m";
+        running ?
+            "PAUSE" :
+            "RESUME";
 
 
-    document.getElementById(
-        "finalScore"
-    ).textContent =
+    if (running) {
 
-        "Distance: " +
-        finalDistance +
-        " m | Coins: " +
-        coinScore;
+        lastTime =
+            performance.now();
 
-
-    document.getElementById(
-        "gameOver"
-    ).classList.add(
-        "show"
-    );
-
-
-    playCrashSound();
+    }
 
 }
 
 
-/* =========================================================
-   RESTART
-========================================================= */
+document.getElementById(
+    "pauseBtn"
+).addEventListener(
+    "click",
+    togglePause
+);
+
+
+// ===============================
+// RESTART
+// ===============================
+
+function setPlayerVehicle() {
+
+    if (selectedVehicle === "car") {
+
+        player.type = "car";
+
+        player.width = 42;
+
+        player.height = 76;
+
+        player.body = "#2196f3";
+
+        player.roof = "#0d47a1";
+
+    }
+
+    else if (selectedVehicle === "bike") {
+
+        player.type = "bike";
+
+        player.width = 25;
+
+        player.height = 55;
+
+        player.body = "#2196f3";
+
+        player.roof = "#0d47a1";
+
+    }
+
+    else if (selectedVehicle === "truck") {
+
+        player.type = "truck";
+
+        player.width = 54;
+
+        player.height = 105;
+
+        player.body = "#2196f3";
+
+        player.roof = "#0d47a1";
+
+    }
+
+    else if (selectedVehicle === "bus") {
+
+        player.type = "bus";
+
+        player.width = 58;
+
+        player.height = 125;
+
+        player.body = "#2196f3";
+
+        player.roof = "#0d47a1";
+
+    }
+
+    else if (selectedVehicle === "tank") {
+
+        player.type = "tank";
+
+        player.width = 58;
+
+        player.height = 82;
+
+        player.body = "#4b8b3b";
+
+        player.roof = "#26321f";
+
+    }
+
+
+    player.x =
+        getLaneX(
+            player.lane,
+            player.width
+        );
+
+    player.targetX =
+        player.x;
+
+}
 
 function restartGame() {
 
     traffic = [];
 
-    coins = [];
-
-    particles = [];
-
-
-    running = true;
-
-    gameOver = false;
-
-
     distance = 0;
-
-    coinScore = 0;
 
     level = 1;
 
     roadOffset = 0;
 
-    dayNight = 0;
+    spawnTimer = 0;
+
+    gameTime = 0;
+
+    gameOver = false;
+
+    running = true;
 
 
-    spawnTimer =
-        0.5;
+    player.lane = 2;
 
-    coinTimer =
-        2;
-
-
-    player.lane =
-        2;
-
+    setPlayerVehicle();
 
     player.x =
         getLaneX(
-            2,
+            player.lane,
             player.width
         );
 
-
     player.targetX =
         player.x;
-
-
-    player.shield =
-        false;
 
 
     document.getElementById(
@@ -2522,383 +1490,27 @@ function restartGame() {
 }
 
 
-/* =========================================================
-   PAUSE
-========================================================= */
-
-function togglePause() {
-
-    if (
-        gameOver
-    ) {
-
-        return;
-
-    }
-
-
-    running =
-        !running;
-
-
-    document.getElementById(
-        "pauseBtn"
-    ).textContent =
-        running
-            ? "PAUSE"
-            : "RESUME";
-
-
-    lastTime =
-        performance.now();
-
-}
-
-
-/* =========================================================
-   KEYBOARD
-========================================================= */
-
-document.addEventListener(
-    "keydown",
-    function (event) {
-
-        if (
-
-            event.key ===
-            "ArrowLeft"
-
-            ||
-
-            event.key.toLowerCase() ===
-            "a"
-
-        ) {
-
-            event.preventDefault();
-
-            movePlayer(-1);
-
-        }
-
-
-        if (
-
-            event.key ===
-            "ArrowRight"
-
-            ||
-
-            event.key.toLowerCase() ===
-            "d"
-
-        ) {
-
-            event.preventDefault();
-
-            movePlayer(1);
-
-        }
-
-
-        if (
-            event.code ===
-            "Space"
-        ) {
-
-            event.preventDefault();
-
-            togglePause();
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-   BUTTONS
-========================================================= */
-
-document.getElementById(
-    "leftBtn"
-).addEventListener(
-    "click",
-    () => movePlayer(-1)
-);
-
-
-document.getElementById(
-    "rightBtn"
-).addEventListener(
-    "click",
-    () => movePlayer(1)
-);
-
-
-document.getElementById(
-    "pauseBtn"
-).addEventListener(
-    "click",
-    togglePause
-);
-
-
 document.getElementById(
     "restartBtn"
 ).addEventListener(
     "click",
+
     restartGame
 );
 
+document.getElementById(
+    "changeVehicleBtn"
+).addEventListener(
+    "click",
+    function () {
 
-/* =========================================================
-   PHONE / TOUCH CONTROLS
-========================================================= */
+        gameScreen.style.display = "none";
 
-canvas.addEventListener(
-    "pointerdown",
-    function (event) {
+        vehicleScreen.style.display = "flex";
 
-        const rect =
-            canvas.getBoundingClientRect();
+        gameOver = false;
 
-
-        const x =
-            event.clientX -
-            rect.left;
-
-
-        /*
-           Tap left half = move left.
-           Tap right half = move right.
-        */
-
-        if (
-            x <
-            rect.width / 2
-        ) {
-
-            movePlayer(-1);
-
-        }
-
-        else {
-
-            movePlayer(1);
-
-        }
+        running = false;
 
     }
-);
-
-
-/* =========================================================
-   SOUND
-========================================================= */
-
-let audioContext = null;
-
-
-function getAudio() {
-
-    if (
-        !soundEnabled
-    ) {
-
-        return null;
-
-    }
-
-
-    if (
-        !audioContext
-    ) {
-
-        audioContext =
-            new (
-                window.AudioContext ||
-                window.webkitAudioContext
-            )();
-
-    }
-
-
-    return audioContext;
-
-}
-
-
-function playCoinSound() {
-
-    const audio =
-        getAudio();
-
-
-    if (
-        !audio
-    ) {
-
-        return;
-
-    }
-
-
-    const oscillator =
-        audio.createOscillator();
-
-
-    const gain =
-        audio.createGain();
-
-
-    oscillator.frequency.value =
-        900;
-
-
-    gain.gain.value =
-        0.08;
-
-
-    oscillator.connect(
-        gain
-    );
-
-
-    gain.connect(
-        audio.destination
-    );
-
-
-    oscillator.start();
-
-
-    oscillator.stop(
-        audio.currentTime +
-        0.08
-    );
-
-}
-
-
-function playCrashSound() {
-
-    const audio =
-        getAudio();
-
-
-    if (
-        !audio
-    ) {
-
-        return;
-
-    }
-
-
-    const oscillator =
-        audio.createOscillator();
-
-
-    const gain =
-        audio.createGain();
-
-
-    oscillator.type =
-        "sawtooth";
-
-
-    oscillator.frequency.value =
-        80;
-
-
-    gain.gain.value =
-        0.15;
-
-
-    oscillator.connect(
-        gain
-    );
-
-
-    gain.connect(
-        audio.destination
-    );
-
-
-    oscillator.start();
-
-
-    oscillator.frequency.exponentialRampToValueAtTime(
-
-        30,
-
-        audio.currentTime +
-        0.4
-
-    );
-
-
-    gain.gain.exponentialRampToValueAtTime(
-
-        0.001,
-
-        audio.currentTime +
-        0.4
-
-    );
-
-
-    oscillator.stop(
-        audio.currentTime +
-        0.4
-    );
-
-}
-
-
-/* =========================================================
-   GAME LOOP
-========================================================= */
-
-function gameLoop(currentTime) {
-
-    const deltaTime =
-        Math.min(
-
-            0.04,
-
-            (
-                currentTime -
-                lastTime
-            ) / 1000
-
-        );
-
-
-    lastTime =
-        currentTime;
-
-
-    update(
-        deltaTime
-    );
-
-
-    draw();
-
-
-    requestAnimationFrame(
-        gameLoop
-    );
-
-}
-
-
-/* =========================================================
-   START
-========================================================= */
-
-requestAnimationFrame(
-    gameLoop
 );
