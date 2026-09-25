@@ -3,8 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Endless Highway</title>
 
@@ -15,78 +14,146 @@
 
     <div class="game-container">
 
-        <!-- HUD -->
-        <div class="hud">
+        <!-- VEHICLE SELECTION SCREEN -->
 
-            <div>
-                <span>Distance</span>
-                <strong id="distance">0 m</strong>
+        <div id="vehicleScreen" class="vehicle-screen">
+
+            <h1>ENDLESS HIGHWAY</h1>
+
+            <p class="choose-text">
+                Choose your vehicle
+            </p>
+
+            <div class="vehicle-options">
+
+                <button class="vehicle-option selected" data-vehicle="car">
+                    <span class="vehicle-icon">🚗</span>
+                    <strong>CAR</strong>
+                    <small>Balanced</small>
+                </button>
+
+                <button class="vehicle-option" data-vehicle="bike">
+                    <span class="vehicle-icon">🏍️</span>
+                    <strong>BIKE</strong>
+                    <small>Fast</small>
+                </button>
+
+                <button class="vehicle-option" data-vehicle="truck">
+                    <span class="vehicle-icon">🚚</span>
+                    <strong>TRUCK</strong>
+                    <small>Heavy</small>
+                </button>
+
+                <button class="vehicle-option" data-vehicle="bus">
+                    <span class="vehicle-icon">🚌</span>
+                    <strong>BUS</strong>
+                    <small>Large</small>
+                </button>
+
+                <button class="vehicle-option" data-vehicle="tank">
+                    <span class="vehicle-icon">🪖</span>
+                    <strong>TANK</strong>
+                    <small>Heavy Armor</small>
+                </button>
+
             </div>
 
-            <div>
-                <span>Speed</span>
-                <strong id="speed">1.0x</strong>
-            </div>
-
-            <div>
-                <span>Level</span>
-                <strong id="level">1</strong>
-            </div>
-
-            <div>
-                <span>Best</span>
-                <strong id="best">0 m</strong>
-            </div>
+            <button id="startGameBtn" class="start-game-btn">
+                START GAME
+            </button>
 
         </div>
 
 
         <!-- GAME -->
-        <div class="game-area">
 
-            <canvas id="gameCanvas"
-                width="420"
-                height="700">
-            </canvas>
+        <div id="gameScreen" class="game-screen">
 
-            <!-- GAME OVER -->
-            <div id="gameOver" class="game-over">
+            <!-- HUD -->
 
-                <h1>CRASH!</h1>
+            <div class="hud">
 
-                <p id="finalScore">
-                    You travelled 0 m
-                </p>
+                <div>
+                    <span>Distance</span>
+                    <strong id="distance">0 m</strong>
+                </div>
 
-                <button id="restartBtn">
-                    PLAY AGAIN
+                <div>
+                    <span>Speed</span>
+                    <strong id="speed">1.0x</strong>
+                </div>
+
+                <div>
+                    <span>Level</span>
+                    <strong id="level">1</strong>
+                </div>
+
+                <div>
+                    <span>Best</span>
+                    <strong id="best">0 m</strong>
+                </div>
+
+            </div>
+
+
+            <!-- GAME AREA -->
+
+            <div class="game-area">
+
+                <canvas
+                    id="gameCanvas"
+                    width="420"
+                    height="700">
+                </canvas>
+
+
+                <!-- GAME OVER -->
+
+                <div id="gameOver" class="game-over">
+
+                    <h1>CRASH!</h1>
+
+                    <p id="finalScore">
+                        You travelled 0 m
+                    </p>
+
+                    <button id="restartBtn">
+                        PLAY AGAIN
+                    </button>
+
+                    <button id="changeVehicleBtn">
+                        CHANGE VEHICLE
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- CONTROLS -->
+
+            <div class="controls">
+
+                <button id="leftBtn">
+                    ◀
+                </button>
+
+                <button id="pauseBtn">
+                    PAUSE
+                </button>
+
+                <button id="rightBtn">
+                    ▶
                 </button>
 
             </div>
 
-        </div>
 
-
-        <!-- CONTROLS -->
-        <div class="controls">
-
-            <button id="leftBtn">
-                ◀
-            </button>
-
-            <button id="pauseBtn">
-                PAUSE
-            </button>
-
-            <button id="rightBtn">
-                ▶
-            </button>
+            <p class="instructions">
+                Use ← → or A / D to change lanes
+            </p>
 
         </div>
-
-        <p class="instructions">
-            Use ← → or A / D to change lanes
-        </p>
 
     </div>
 
